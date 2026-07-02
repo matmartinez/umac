@@ -45,6 +45,7 @@
 #include "via.h"
 #include "scc.h"
 #include "rom.h"
+#include "umac.h"
 #include "disc.h"
 
 #ifdef PICO
@@ -140,6 +141,20 @@ void exit_error(char* fmt, ...)
 
 ////////////////////////////////////////////////////////////////////////////////
 // VIA-related controls
+/* Sound state, decoded from the VIA and consumed by the host audio glue.
+ * Default to muted at volume 7 / main buffer: the ROM programs the real values
+ * early in boot, and starting muted avoids a power-on pop before it does. */
+static volatile uint8_t snd_enabled = 0;
+static volatile uint8_t snd_volume  = 7;
+static volatile uint8_t snd_alt     = 0;
+
+void    umac_get_snd_state(struct umac_snd_state *s)
+{
+        s->enabled    = snd_enabled;
+        s->volume     = snd_volume;
+        s->alt_buffer = snd_alt;
+}
+
 static void     via_ra_changed(uint8_t val)
 {
         static uint8_t oldval = 0x10;
@@ -155,6 +170,9 @@ static void     via_ra_changed(uint8_t val)
                 update_overlay_layout();
         }
 
+        snd_volume = val & 0x07;
+        snd_alt    = !(val & 0x08);   // snd.pg2 low = alternate buffer
+
         oldval = val;
 }
 
@@ -166,7 +184,7 @@ static void     via_rb_changed(uint8_t val)
         // 4 = mouse4 (in, mouse X2)
         // 3 = mouse7 (in, 0 = button pressed)
         // [2:0] = RTC controls
-        (void)val;
+        snd_enabled = !(val & 0x80);   // sndres high = sound disabled
 }
 
 static uint8_t  via_ra_in(void)

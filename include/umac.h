@@ -46,6 +46,19 @@ static inline void      umac_1hz_event(void)
         via_caX_event(1);
 }
 
+/* Sound register state, decoded from the VIA (see mini vMac's SNDEMDEV.c).
+ * The Mac has no sound chip: software writes 8-bit samples to a RAM buffer and
+ * the VIA gates/scales the output. The host audio glue reads this each frame.
+ *   enabled    - 0 = muted (VIA PB7 sndres high); output the center value
+ *   volume     - 0..7 sound volume (VIA PA[2:0]); amplitude ~= 1/(8-volume)
+ *   alt_buffer - 1 = alternate sound buffer selected (VIA PA3 snd.pg2 low) */
+struct umac_snd_state {
+        uint8_t enabled;
+        uint8_t volume;
+        uint8_t alt_buffer;
+};
+void    umac_get_snd_state(struct umac_snd_state *s);
+
 /* Return the offset into RAM of the current display buffer */
 static inline unsigned int      umac_get_fb_offset(void)
 {
